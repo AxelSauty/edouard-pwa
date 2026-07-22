@@ -1,32 +1,60 @@
-# React + TypeScript + Vite
+# Edouard PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The primary view for the Edouard personal assistant. Reached over Tailscale -
+no public exposure. See [`Pi5-personal-assistant.md`](../Pi5-personal-assistant.md)
+for the full architecture.
 
-Currently, two official plugins are available:
+## Role
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Display + writes for calendar, projects, tasks, journaling, routines.
+- Local speech-to-text for journaling (audio never leaves the server).
+- Chat panel (later) - reaches Hermes' OpenAI-compatible API via the proxy.
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + TypeScript
+- Vite 8
+- Tailwind CSS v4 + shadcn/ui base
+- recharts for data visualization
+- vite-plugin-pwa (service worker + manifest)
 
-## Expanding the Oxlint configuration
+## Development
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### Local
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # http://localhost:5173 (base: /app/)
+npm run build    # outputs to dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### On the VM
+
+The PWA is built as part of the `web` (nginx) container in
+`infra/docker-compose.yml` via a multi-stage Dockerfile
+(`infra/docker/web.Dockerfile`):
+
+1. Stage 1 (`pwa-build`): `npm ci && npm run build` -> `/dist`
+2. Stage 2 (`nginx`): assembles Laravel source + PWA dist into one nginx image
+
+The PWA is served at `/app/` by nginx; Laravel API at `/`.
+
+Source is synced to `~/agent/edouard-pwa/` (rsync from Mac until a GitHub deploy
+key is set up on the VM).
+
+```bash
+cd ~/agent
+docker compose build web
+docker compose up -d web
+```
+
+## Structure
+
+```
+src/
+  App.tsx           # Dashboard - MCP connection check + sample chart
+  lib/utils.ts      # cn() helper for shadcn/ui
+  index.css         # Tailwind v4 theme tokens
+vite.config.ts      # Vite + Tailwind + PWA + /app/ base path
+Dockerfile          # Build-only (outputs to /dist)
+```
